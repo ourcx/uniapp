@@ -1,4 +1,6 @@
+
 export function queryPath(path: string) {
+    // console.log('path', path);
   const [pagePath, paramsStr] = path.split('?')[1];
   const result: Record<string, any> = {
     query: {},
@@ -10,7 +12,7 @@ export function queryPath(path: string) {
   }
 
   let paramList = paramsStr.split('&');
-  console.log('paramList', paramList);
+//   console.log('paramList', paramList);
   paramList.forEach((param) => {
     let key = param.split('=')[0];
     let value = param.split('=')[1];

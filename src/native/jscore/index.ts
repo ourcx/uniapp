@@ -1,3 +1,9 @@
+
+
+import { MiniApp } from "../miniapp";
+import mitt, { Emitter } from 'mitt';
+import workerJs from './worker.js?raw';
+import type { IMessage } from "../../types/common";
 /**
  * JSCore js逻辑执行的逻辑线程
  * 
@@ -9,11 +15,6 @@
  * + postMessage(message: any): void 向逻辑线程发送消息
  * + addEventListener(type: string, listener: (event: any) => void): void 监听逻辑线程消息
  */
-
-import { MiniApp } from "../miniapp";
-import mitt, { Emitter } from 'mitt';
-import workerJs from './worker.js?raw';
-import type { IMessage } from "../../types/common";
 export class JSCore {
     /**
      * 父级小程序实例

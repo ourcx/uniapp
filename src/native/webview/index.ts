@@ -6,7 +6,19 @@ import { Bridge } from "../bridge";
 
 
 
-
+/**
+ * WebView 原生webview容器
+ * id: string 每个webview的唯一id
+ * opts: WebviewParams webview配置参数
+ * el: HTMLElement webview根元素
+ * parent: Bridge | null 所属bridge实例
+ * iframe: HTMLIFrameElement webview中的iframe元素
+ * event: Emitter<Record<string, any>> 事件emitter实例
+ * + init(): Promise<void> 初始化webview
+ * + postMessage(message: IMessage): void 向webview发送消息
+ * + addEventListener(type: string, listener: (event: any) => void): void 监听webview消息
+ * + setInitialStyle(): void 根据配置初始化webview样式
+ */
 export class WebView {
     id: string;
     opts: WebviewParams;

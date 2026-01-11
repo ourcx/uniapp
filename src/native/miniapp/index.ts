@@ -5,6 +5,7 @@ import { AppManager } from "../appManager";
 import { Bridge } from "../bridge";
 import { JSCore } from "../jscore";
 import { miniAppTpl } from "./tpl";
+import { mergePageConfig } from "./utils";
 
 export class MiniApp {
   /* 小程序appId */
@@ -15,23 +16,37 @@ export class MiniApp {
   parent: Application | null = null;
   /* 小程序页面根节点 */
   el: HTMLElement;
+  /**
+   * 小程序 app 配置
+   */
+  appConfig: Record<string, any> | null = null;
   /* 小程序webview的挂载节点 */
   webviewContainer: HTMLElement | null = null;
+  /**
+   * 当前小程序的 jscore 实例
+   * 
+   * 一个小程序公用一个唯一的 jscore 实例，用于执行小程序的 js 代码
+   */
   jscore: JSCore;
+  /**
+   * bridge列表
+   */
   bridgeList: Bridge[] = [];
-
+  /**
+   * bridge ID -> bridge 实例的映射 
+   */
+  bridges: Record<string, Bridge> = {};
+  
   constructor(opts: OpenMiniAppOpts) {
     this.app = opts;
     this.appId = opts.appId;
+    this.jscore = new JSCore();
     // 创建小程序页面的根节点
     this.el = document.createElement('div');
     this.el.classList.add('wx-native-view');
-    this.jscore = new JSCore();
   }
-
-  /**
-   * 初始化小程序页面 
-   * */
+  
+  /* 初始化小程序页面 */
   viewDidLoad() {
     // 初始化小程序页面模版
     this.initMiniAppFrame();
@@ -40,46 +55,53 @@ export class MiniApp {
     this.showLaunchScreen();
     // 绑定小程序关闭事件
     this.bindCloseEvent();
-    //小程序初始化
+    // 小程序初始化
     this.init();
   }
 
   async init() {
-    // 将小程序添加到应用实例的容器节点中
+    // 初始化小程序逻辑执行线程
     this.jscore?.init();
+
+    // 模拟读取小程序配置文件信息
+    const configPath = `/${this.app.appId}/config.json`;
+    const res = await fetch(configPath).then(res => res.text());
+    this.appConfig = JSON.parse(res);
+
+    // 创建 js bridge，构建起 logic worker -> ui worker 通信
+    const entryPagePath = this.app.path || this.appConfig!.app.entryPagePath;
+    const pageConfig = this.appConfig!.modules?.[entryPagePath];
     const entryPageBridge = await this.createBridge({
       jscore: this.jscore,
       isRoot: true,
       appId: this.app.appId,
       pagePath: this.app.path,
-      pages: [],
+      pages: this.appConfig!.app?.pages,
       query: this.app.query,
       scene: this.app.scene,
-      configInfo: { // 暂时模拟构造一下美团小程序的页面配置参数，后续我们会通过读取小程序的 app.json 文件获取
-        "navigationBarBackgroundColor": "#ffd200",
-        "navigationBarTextStyle": "black",
-        "navigationBarTitleText": "美团",
-        "backgroundColor": "#fff",
-        "usingComponents": {}
-      }
+      configInfo: mergePageConfig(this.appConfig!.app, pageConfig),
     });
-    this.bridgeList.push(entryPageBridge)
+    this.bridgeList.push(entryPageBridge);
 
-    //隐藏小程序加载
+    // 开始出发小程序应用初始化
+    entryPageBridge.start();
+
     this.hideLaunchScreen();
   }
 
   async createBridge(opts: BridgeParams) {
     const bridge = new Bridge(opts);
     bridge.parent = this;
+    // 初始化bridge
     await bridge.init();
     return bridge;
   }
 
+  
   initMiniAppFrame() {
     this.el.innerHTML = miniAppTpl;
   }
-
+  
   /**
    * 显示小程序加载状态
    */
@@ -88,11 +110,12 @@ export class MiniApp {
     const name = this.el.querySelector('.wx-mini-app__name') as HTMLElement;
     const logo = this.el.querySelector('.wx-mini-app__logo-img-url') as HTMLImageElement;
 
+    this.updateActionColorStyle('black');
     name.innerHTML = this.app.name;
     logo.src = this.app.logo;
     launchScreen.style.display = 'block';
   }
-
+  
   /**
    * 隐藏小程序加载状态
    */
@@ -101,6 +124,19 @@ export class MiniApp {
     startPage.style.display = 'none';
   }
 
+  updateActionColorStyle(color: string) {
+    const action = this.el.querySelector('.wx-mini-app-navigation__actions') as HTMLElement;
+
+		if (color === 'white') {
+			action.classList.remove('wx-mini-app-navigation__actions--black');
+			action.classList.add('wx-mini-app-navigation__actions--white');
+		}
+
+		if (color === 'black') {
+			action.classList.remove('wx-mini-app-navigation__actions--white');
+			action.classList.add('wx-mini-app-navigation__actions--black');
+		}
+  }
 
   bindCloseEvent() {
     const closeBtn = this.el.querySelector('.wx-mini-app-navigation__actions-close') as HTMLElement;

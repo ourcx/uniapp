@@ -3,6 +3,9 @@ import { BridgeParams, IMessage } from "../../types/common";
 import { uuid } from "../../utils/util";
 import { MiniApp } from "../miniapp";
 import { JSCore } from "../jscore";
+import { app } from "@tauri-apps/api";
+
+
 
 
 export class Bridge {
@@ -11,6 +14,8 @@ export class Bridge {
     jscore: JSCore;
     parent: MiniApp | null = null;
     opts: BridgeParams;
+    status: number = 0;
+
 
     constructor(opts: BridgeParams) {
         this.id = `bridge_${uuid()}`;
@@ -33,6 +38,7 @@ export class Bridge {
         this.webview.addEventListener('message', this.uiMessageHandler.bind(this));
     }
 
+    //创建当前bridge关联的webview进程
     async createWebview() {
         return new Promise<WebView>((resolve) => {
             const webview = new WebView({
@@ -48,4 +54,30 @@ export class Bridge {
         });
 
     }
+    //通知逻辑线程和UI线程加载小程序资源
+    start(loadLogicSource = true){
+        //通知ui线程
+        this.webview?.postMessage({
+            type: 'loadResource',
+            body:{
+                appId: this.opts.appId,
+                pagePath: this.opts.pagePath,
+            }
+        })
+        if(loadLogicSource){
+            this.jscore.postMessage({
+                //初始化触发一次小程序逻辑资源加载
+                type: 'loadResource',
+                body:{
+                    appId: this.opts.appId,
+                    pages: this.opts.pages,
+                    bridgeId: this.id
+                }
+            })
+        }else{
+            this.status++
+            //一个小程序的逻辑线程worker是公用的，在初次启动后，后面就可以不用再继续加载了。
+        }
+    }
+
 }

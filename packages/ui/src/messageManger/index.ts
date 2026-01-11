@@ -18,8 +18,11 @@ class messageManager {
   }
 
   init() {
+    // 1. bridge 层通知 ui 线程加载小程序页面资源
     this.message.receive('loadResource', this.loadResource.bind(this));
+    // 2. 逻辑线程准备好数据之后，发送给ui线程渲染页面
     this.message.receive('setInitialData', this.setInitialData.bind(this));
+    // 3. 逻辑线程调用 `setData` 更新数据后，通知ui线程重新渲染
     this.message.receive('updateModule', this.updateModule.bind(this));
   }
 
